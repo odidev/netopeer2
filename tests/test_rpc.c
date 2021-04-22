@@ -115,11 +115,94 @@ test_lock(void **state)
     nc_session_free(nc_sess2, NULL);
 }
 
+static void
+test_nc_rpc_types(void **state)
+{
+    struct nc_rpc *rpc;
+
+    (void)state;
+
+    /* Test that all constructors create the right type of rpc */
+    rpc = nc_rpc_lock(NC_DATASTORE_RUNNING);
+    assert_int_equal(NC_RPC_LOCK, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_unlock(NC_DATASTORE_RUNNING);
+    assert_int_equal(NC_RPC_UNLOCK, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_get("", NC_WD_ALL, NC_PARAMTYPE_CONST);
+    assert_int_equal(NC_RPC_GET, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_kill(NC_DATASTORE_RUNNING);
+    assert_int_equal(NC_RPC_KILL, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_commit(NC_DATASTORE_RUNNING, 0, NULL, NULL, NC_PARAMTYPE_CONST);
+    assert_int_equal(NC_RPC_COMMIT, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_discard();
+    assert_int_equal(NC_RPC_DISCARD, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_cancel("", NC_PARAMTYPE_CONST);
+    assert_int_equal(NC_RPC_CANCEL, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_validate(NC_DATASTORE_RUNNING, "", NC_PARAMTYPE_CONST);
+    assert_int_equal(NC_RPC_VALIDATE, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_subscribe("", "", "", "", NC_PARAMTYPE_CONST);
+    assert_int_equal(NC_RPC_SUBSCRIBE, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_getdata("", "", "", NULL, 0, 0, 0, 0, NC_WD_ALL, NC_PARAMTYPE_CONST);
+    assert_int_equal(NC_RPC_GETDATA, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    rpc = nc_rpc_editdata("", NC_RPC_EDIT_DFLTOP_MERGE, "", NC_PARAMTYPE_CONST);
+    assert_int_equal(NC_RPC_EDITDATA, nc_rpc_get_type(rpc));
+    nc_rpc_free(rpc);
+
+    /* TODO: NC_RPC_ESTABLISHSUB and the rest */
+}
+
+static void
+test_rpc_lock(void **state)
+{
+    struct np_test *st = *state;
+    struct nc_rpc *rpc;
+    NC_MSG_TYPE msgtype;
+    uint64_t msgid;
+
+    rpc = nc_rpc_lock(NC_DATASTORE_RUNNING);
+    assert_non_null(rpc);
+
+    /* send request */
+    msgtype = nc_send_rpc(st->nc_sess, rpc, 1000, &msgid);
+    assert_int_equal(msgtype, NC_MSG_RPC);
+
+
+    /* request to lock from another session should fail when lock already */
+    /* TODO: try lock from another session */
+    msgtype = nc_send_rpc(st->nc_sess2, rpc, 1000, &msgid);
+    assert_int_equal(msgtype, NC_MSG_RPC);
+
+
+    (void)state;
+    nc_rpc_free(rpc);
+}
+
 int
 main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_lock),
+        cmocka_unit_test(test_nc_rpc_types),
+        cmocka_unit_test(test_rpc_lock),
     };
 
     nc_verbosity(NC_VERB_WARNING);
