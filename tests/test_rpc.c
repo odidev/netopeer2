@@ -203,8 +203,7 @@ test_rpc_lock(void **state)
     msgtype = nc_recv_reply(st->nc_sess2, rpc, msgid, 2000, &envp, &op);
     assert_int_equal(msgtype, NC_MSG_REPLY);
     assert_null(op);
-    /* TODO: what should then envp be? */
-    /* assert_string_equal(LYD_NAME(lyd_child(envp)), "ok"); */
+    assert_string_equal(LYD_NAME(lyd_child(envp)), "rpc-error");
 
     nc_rpc_free(rpc);
     lyd_free_tree(envp);
@@ -212,6 +211,9 @@ test_rpc_lock(void **state)
     /* unlock RPC */
     rpc = nc_rpc_unlock(NC_DATASTORE_RUNNING);
     nc_send_rpc(st->nc_sess, rpc, 1000, &msgid);
+    nc_rpc_free(rpc);
+
+    /* TODO: check if lock prevents changes */
 }
 
 int
