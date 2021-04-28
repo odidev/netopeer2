@@ -239,6 +239,58 @@ test_rpc_lock(void **state)
     /* TODO: check if lock prevents changes */
 }
 
+
+static void
+test_rpc_unlock(void **state)
+{
+    struct np_test *st = *state;
+    struct nc_rpc *rpc;
+    NC_MSG_TYPE msgtype;
+    uint64_t msgid;
+    struct lyd_node *envp, *op;
+
+    /* Simple locking checked in previous tests */
+
+    /* Lock by a different session */
+    rpc = nc_rpc_lock(NC_DATASTORE_RUNNING);
+    nc_send_rpc(st->nc_sess2, rpc, 1000, &msgid);
+
+    /* receive reply */
+    msgtype = nc_recv_reply(st->nc_sess2, rpc, msgid, 2000, &envp, &op);
+    assert_int_equal(msgtype, NC_MSG_REPLY);
+    assert_null(op);
+    assert_string_equal(LYD_NAME(lyd_child(envp)), "ok");
+
+    nc_rpc_free(rpc);
+    lyd_free_tree(envp);
+
+    /* Try unlocking a lock by a different session */
+    rpc = nc_rpc_unlock(NC_DATASTORE_RUNNING);
+    nc_send_rpc(st->nc_sess, rpc, 1000, &msgid);
+
+    /* recieve reply, should yield error */
+    msgtype = nc_recv_reply(st->nc_sess, rpc, msgid, 2000, &envp, &op);
+    assert_int_equal(msgtype, NC_MSG_REPLY);
+    assert_null(op);
+    assert_string_equal(LYD_NAME(lyd_child(envp)), "rpc-error");
+
+    nc_rpc_free(rpc);
+    lyd_free_tree(envp);
+
+    /* Try unlocking the original session, should succeed */
+    rpc = nc_rpc_unlock(NC_DATASTORE_RUNNING);
+    nc_send_rpc(st->nc_sess2, rpc, 1000, &msgid);
+
+    /* recieve reply, should succeed */
+    msgtype = nc_recv_reply(st->nc_sess2, rpc, msgid, 2000, &envp, &op);
+    assert_int_equal(msgtype, NC_MSG_REPLY);
+    assert_null(op);
+    assert_string_equal(LYD_NAME(lyd_child(envp)), "ok");
+
+    nc_rpc_free(rpc);
+    lyd_free_tree(envp);
+}
+
 int
 main(void)
 {
@@ -246,6 +298,7 @@ main(void)
         cmocka_unit_test(test_lock),
         cmocka_unit_test(test_nc_rpc_types),
         cmocka_unit_test(test_rpc_lock),
+        cmocka_unit_test(test_rpc_unlock),
     };
 
     nc_verbosity(NC_VERB_WARNING);
