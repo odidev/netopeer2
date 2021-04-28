@@ -205,14 +205,37 @@ test_rpc_lock(void **state)
     assert_null(op);
     assert_string_equal(LYD_NAME(lyd_child(envp)), "rpc-error");
 
+    /* lyd_print_file(stdout, envp, LYD_XML, LYD_PRINT_WITHSIBLINGS); */
+    /* TODO: Check if error message has the following format */
+    /* <rpc-reply message-id="101"> */
+    /*       xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"> */
+    /*    <rpc-error> <!-- lock failed --> */
+    /*      <error-type>protocol</error-type> */
+    /*      <error-tag>lock-denied</error-tag> */
+    /*      <error-severity>error</error-severity> */
+    /*      <error-message> */
+    /*        Lock failed, lock is already held */
+    /*      </error-message> */
+    /*      <error-info> */
+    /*        <session-id>454</session-id> */
+    /*        <!-- lock is held by NETCONF session 454 --> */
+    /*      </error-info> */
+    /*    </rpc-error> */
+    /*  </rpc-reply>" */
+
     nc_rpc_free(rpc);
     lyd_free_tree(envp);
 
     /* unlock RPC */
     rpc = nc_rpc_unlock(NC_DATASTORE_RUNNING);
     nc_send_rpc(st->nc_sess, rpc, 1000, &msgid);
-    nc_rpc_free(rpc);
+    msgtype = nc_recv_reply(st->nc_sess, rpc, msgid, 2000, &envp, &op);
+    assert_int_equal(msgtype, NC_MSG_REPLY);
+    assert_null(op);
+    assert_string_equal(LYD_NAME(lyd_child(envp)), "ok");
 
+    nc_rpc_free(rpc);
+    lyd_free_tree(envp);
     /* TODO: check if lock prevents changes */
 }
 
