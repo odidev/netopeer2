@@ -278,6 +278,29 @@ test_rpc_kill(void **state) {
     /* TODO: NACM tests */
 }
 
+static void
+test_rpc_commit(void **state) {
+    struct np_test *st = *state;
+    struct nc_rpc *rpc;
+    NC_MSG_TYPE msgtype;
+    uint64_t msgid;
+    struct lyd_node *envp, *op;
+
+    /* Try to close a session */
+    rpc = nc_rpc_commit(0, 0, NULL, NULL, NC_PARAMTYPE_CONST);
+    nc_send_rpc(st->nc_sess, rpc, 1000, &msgid);
+
+    /* recieve reply, should fail since wrong permissions */
+    msgtype = nc_recv_reply(st->nc_sess, rpc, msgid, 2000, &envp, &op);
+    assert_int_equal(msgtype, NC_MSG_REPLY);
+    assert_null(op);
+    assert_string_equal(LYD_NAME(lyd_child(envp)), "ok");
+
+    nc_rpc_free(rpc);
+    lyd_free_tree(envp);
+    /* TODO: test funcionality */
+}
+
 int
 main(void)
 {
@@ -287,6 +310,7 @@ main(void)
         cmocka_unit_test(test_rpc_unlock),
         cmocka_unit_test(test_rpc_get),
         cmocka_unit_test(test_rpc_kill),
+        cmocka_unit_test(test_rpc_commit),
     };
 
     nc_verbosity(NC_VERB_WARNING);
