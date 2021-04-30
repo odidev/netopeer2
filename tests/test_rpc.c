@@ -20,7 +20,10 @@
  * limitations under the License.
  */
 
+#include <libnetconf2/messages_client.h>
+#include <libnetconf2/netconf.h>
 #include <libyang/printer_data.h>
+#include <libyang/tree_data.h>
 #define _GNU_SOURCE
 
 #include <string.h>
@@ -226,6 +229,31 @@ test_rpc_unlock(void **state)
     lyd_free_tree(envp);
 }
 
+static void
+test_rpc_get(void **state) {
+    struct np_test *st = *state;
+    struct nc_rpc *rpc;
+    NC_MSG_TYPE msgtype;
+    uint64_t msgid;
+    struct lyd_node *envp, *op;
+
+    /* Try to get all */
+    rpc = nc_rpc_get(NULL, NC_WD_ALL, NC_PARAMTYPE_CONST);
+    nc_send_rpc(st->nc_sess, rpc, 1000, &msgid);
+
+    /* recieve reply, should succeed */
+    msgtype = nc_recv_reply(st->nc_sess, rpc, msgid, 2000, &envp, &op);
+    assert_int_equal(msgtype, NC_MSG_REPLY);
+    assert_non_null(op);
+    assert_non_null(envp);
+
+    nc_rpc_free(rpc);
+    lyd_free_tree(envp);
+    lyd_free_tree(op);
+
+    /* TODO: test if filter works */
+}
+
 int
 main(void)
 {
@@ -233,6 +261,7 @@ main(void)
         cmocka_unit_test(test_nc_rpc_types),
         cmocka_unit_test(test_rpc_lock),
         cmocka_unit_test(test_rpc_unlock),
+        cmocka_unit_test(test_rpc_get),
     };
 
     nc_verbosity(NC_VERB_WARNING);
