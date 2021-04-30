@@ -20,6 +20,7 @@
  * limitations under the License.
  */
 
+#include <libyang/printer_data.h>
 #define _GNU_SOURCE
 
 #include <string.h>
@@ -34,6 +35,18 @@
 
 #include "np_test.h"
 #include "np_test_config.h"
+
+#define LOCK_FAIL_TEMPLATE "<rpc-reply xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" message-id=\"%ld\">"\
+        "<rpc-error>"\
+            "<error-type>protocol</error-type>"\
+            "<error-tag>lock-denied</error-tag>"\
+            "<error-severity>error</error-severity>"\
+            "<error-message lang=\"en\">Access to the requested lock is denied because the lock is currently held by another entity.</error-message>"\
+            "<error-info>"\
+                "<session-id>%d</session-id>"\
+            "</error-info>"\
+        "</rpc-error>"\
+    "</rpc-reply>"
 
 NP_GLOB_SETUP_FUNC
 
@@ -129,21 +142,8 @@ test_rpc_lock(void **state)
     assert_string_equal(LYD_NAME(lyd_child(envp)), "rpc-error");
     assert_int_equal(LY_SUCCESS, lyd_print_mem(&str, envp, LYD_XML, LYD_PRINT_SHRINK));
 
-    char *expected_template = "<rpc-reply xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" message-id=\"%d\">"
-        "<rpc-error>"
-            "<error-type>protocol</error-type>"
-            "<error-tag>lock-denied</error-tag>"
-            "<error-severity>error</error-severity>"
-            "<error-message lang=\"en\">Access to the requested lock is denied because the lock is currently held by another entity.</error-message>"
-            "<error-info>"
-                "<session-id>%d</session-id>"
-            "</error-info>"
-        "</rpc-error>"
-    "</rpc-reply>";
-
     char expected[500];
-
-    sprintf(expected, expected_template, msgid, nc_session_get_id(st->nc_sess));
+    sprintf(expected, LOCK_FAIL_TEMPLATE, msgid, nc_session_get_id(st->nc_sess));
 
     /* error expected */
     assert_string_equal(str, expected);
@@ -174,6 +174,7 @@ test_rpc_unlock(void **state)
     NC_MSG_TYPE msgtype;
     uint64_t msgid;
     struct lyd_node *envp, *op;
+    char *str;
 
     /* Simple locking checked in previous tests */
 
@@ -199,6 +200,14 @@ test_rpc_unlock(void **state)
     assert_int_equal(msgtype, NC_MSG_REPLY);
     assert_null(op);
     assert_string_equal(LYD_NAME(lyd_child(envp)), "rpc-error");
+    assert_int_equal(LY_SUCCESS, lyd_print_mem(&str, envp, LYD_XML, LYD_PRINT_SHRINK));
+
+    char expected[500];
+    sprintf(expected, LOCK_FAIL_TEMPLATE, msgid, nc_session_get_id(st->nc_sess2));
+
+    /* error expected */
+    assert_string_equal(str, expected);
+    free(str);
 
     nc_rpc_free(rpc);
     lyd_free_tree(envp);
