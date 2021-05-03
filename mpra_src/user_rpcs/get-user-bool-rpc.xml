@@ -1,0 +1,7 @@
+<get-antenna-cfg xmlns="urn:m-plane:rpcs:1.0">
+<!--    
+<request>GET</request>
+-->
+    <datastore>running</datastore>
+    <xpath>/o-ran-antenna-calibration:antenna-calibration/self-calibration-policy/self-calibration-allowed</xpath>
+</get-antenna-cfg>

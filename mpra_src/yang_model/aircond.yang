@@ -1,0 +1,26 @@
+module aircond {
+    yang-version 1.1;
+    namespace "urn:m-plane:aircond:1.0";
+    prefix "aircond";
+
+    revision 2021-04-29 {
+        description "Initial revision.";
+    }
+
+    typedef aircond-temperature {
+        description "Temperature range that is accepted by the aircond.";
+        type uint8 {
+            range "18..27";
+        }
+    }
+
+    container aircond-state {
+        description "State data container of the aircond.";
+
+        leaf temperature {
+            description "Actual temperature inside the aircond.";
+            type aircond-temperature;
+            default 22;
+        }
+    }
+}

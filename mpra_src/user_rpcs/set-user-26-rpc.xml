@@ -1,0 +1,6 @@
+<change-temperature xmlns="urn:m-plane:rpcs:1.0">
+    <request>SET</request>
+    <datastore>running</datastore>
+    <xpath>/aircond:aircond-state/temperature</xpath>
+    <value>26</value>
+</change-temperature>

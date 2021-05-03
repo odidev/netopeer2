@@ -30,6 +30,27 @@
 #include "common.h"
 #include "log.h"
 #include "netconf_acm.h"
+#include "mpra.h"
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <signal.h>
+
+#define PRINT_LOG 1
+int CURR_LOG_LEVEL = INFO_LOG;
+
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define LOG(LEVEL, fmt, ...)                                               \
+            if(PRINT_LOG)                                                  \
+            do {                                                           \
+                if(LEVEL >= CURR_LOG_LEVEL)                                \
+                    fprintf(stderr, "[NETOPEER2] <%s, %s:%d> " fmt "\n",   \
+                        __func__, __FILENAME__, __LINE__,  ##__VA_ARGS__); \
+            } while(0)
+
+#define MAX_INPUT_SIZE 1024
+#define DELIMETER ' '
 
 static int
 np2srv_get_first_ns(const char *expr, const char **start, int *len)
@@ -184,6 +205,459 @@ np2srv_getconfig_rpc_data(sr_session_ctx_t *session, const struct np2_filter *fi
 cleanup:
     lyd_free_withsiblings(select_data);
     return rc;
+}
+
+void mplane_append_in_command_buff(const sr_val_t *value, char *command_buff)
+{
+    if (NULL == value) {
+        return;
+    }
+    char *p = NULL;
+    char *dup_str = NULL;
+    p = strrchr(value->xpath, '/');
+    const char *field = ++p;
+    command_buff += strlen(command_buff);
+    sprintf(command_buff, "%s%c", field, DELIMETER);
+    command_buff += strlen(command_buff);
+    if(!strcmp(field, "xpath") && value->data.string_val[0] != '/')
+    {
+        sprintf(command_buff, "%s", "/");
+        command_buff += strlen(command_buff);
+    }
+
+    switch (value->type) {
+    case SR_CONTAINER_T:
+    case SR_CONTAINER_PRESENCE_T:
+        LOG(DEBUG_LOG, "(container)");
+        break;
+    case SR_LIST_T:
+        LOG(DEBUG_LOG, "(list instance)");
+        break;
+    case SR_STRING_T:
+        LOG(DEBUG_LOG, "%s = %s", value->xpath, value->data.string_val);
+        sprintf(command_buff, "%s%c", value->data.string_val, DELIMETER);
+        break;
+    case SR_BOOL_T:
+        LOG(DEBUG_LOG, "%s = %s", value->xpath, value->data.bool_val ? "true" : "false");
+        sprintf(command_buff, "%s%c", value->data.bool_val ? "true" : "false", DELIMETER);
+        break;
+    case SR_DECIMAL64_T:
+        LOG(DEBUG_LOG, "%s = %g", value->xpath, value->data.decimal64_val);
+        sprintf(command_buff, "%g%c", value->data.decimal64_val, DELIMETER);
+        break;
+    case SR_INT8_T:
+        LOG(DEBUG_LOG, "%s = %" PRId8, value->xpath, value->data.int8_val);
+        sprintf(command_buff, "%" PRId8, value->data.int8_val);
+        command_buff += strlen(command_buff);
+        sprintf(command_buff, "%c", DELIMETER);
+        break;
+    case SR_INT32_T:
+        LOG(DEBUG_LOG, "%s = %" PRId32, value->xpath, value->data.int32_val);
+        sprintf(command_buff, "%" PRId32, value->data.int32_val);
+        command_buff += strlen(command_buff);
+        sprintf(command_buff, "%c", DELIMETER);
+        break;
+    case SR_INT64_T:
+        LOG(DEBUG_LOG, "%s = %" PRId64, value->xpath, value->data.int64_val);
+        sprintf(command_buff, "%" PRId64, value->data.int64_val);
+        command_buff += strlen(command_buff);
+        sprintf(command_buff, "%c", DELIMETER);
+        break;
+    case SR_UINT8_T:
+        LOG(DEBUG_LOG, "%s = %" PRIu8, value->xpath, value->data.uint8_val);
+        sprintf(command_buff, "%" PRIu8, value->data.uint8_val);
+        command_buff += strlen(command_buff);
+        sprintf(command_buff, "%c", DELIMETER);
+        break;
+    case SR_UINT32_T:
+        LOG(DEBUG_LOG, "%s = %" PRIu32, value->xpath, value->data.uint32_val);
+        sprintf(command_buff, " %" PRIu32, value->data.uint32_val);
+        command_buff += strlen(command_buff);
+        sprintf(command_buff, " %c", DELIMETER);
+        break;
+    case SR_UINT64_T:
+        LOG(DEBUG_LOG, "%s = %" PRIu64, value->xpath, value->data.uint64_val);
+        sprintf(command_buff, " %" PRIu64, value->data.uint64_val);
+        command_buff += strlen(command_buff);
+        sprintf(command_buff, "%c", DELIMETER);
+        break;
+    case SR_ENUM_T:
+        LOG(DEBUG_LOG, "%s = %s", value->xpath, value->data.enum_val);
+        sprintf(command_buff, "%s%c", value->data.enum_val, DELIMETER);
+        break;
+    default:
+        LOG(DEBUG_LOG, "(unprintable)");
+        break;
+    }
+}
+
+input_t*
+mplane_parse_rpc_input(const sr_val_t *input, const size_t input_cnt)
+{
+    size_t i;
+    input_t *cmd_buff = NULL;
+    char buff[MAX_INPUT_SIZE];
+
+    cmd_buff = (input_t*) malloc(sizeof(input_t)+sizeof(char));
+    if(!cmd_buff)
+    {
+        LOG(CRIT_LOG, "malloc() failed");
+        return NULL;
+    }
+
+    memset(cmd_buff, 0, (sizeof(input_t)+sizeof(char)) * sizeof(char));
+    cmd_buff->size = sizeof(input_t) + sizeof(char);
+    cmd_buff->buff[0] = '\0';
+
+    for (i = 0; i < input_cnt; ++i) {
+        memset(buff, 0, MAX_INPUT_SIZE * sizeof(char));
+        mplane_append_in_command_buff(&input[i], buff);
+        cmd_buff = (input_t *) realloc(cmd_buff, cmd_buff->size + strlen(buff));
+        if(!cmd_buff)
+        {
+            LOG(CRIT_LOG, "realloc() failed");
+            return NULL;
+        }
+        strcat(cmd_buff->buff, buff);
+        cmd_buff->size += strlen(buff);
+    }
+    LOG(DEBUG_LOG, "length: %ld", cmd_buff->size);
+    LOG(DEBUG_LOG, "buff: %s", cmd_buff->buff);
+    return cmd_buff;
+}
+
+void msg_snd(void *buff, size_t size)
+{
+    LOG(DEBUG_LOG, "Writing on fifo: %ld bytes", size);
+    int fd;
+    char * FIFO = "/tmp/mplane";
+
+    mkfifo(FIFO, 0777);
+    fd = open(FIFO, O_WRONLY);
+    write(fd, buff, size);
+    LOG(DEBUG_LOG, "Write successful");
+    close(fd);
+}
+void msg_rcv(void **buff, size_t size)
+{
+    LOG(DEBUG_LOG, "Reading from the fifo: %ld bytes", size);
+    int fd;
+    size_t retbyte = 0;
+    char * FIFO = "/tmp/mplane";
+    void *out = (void*) malloc(size);
+    memset(out, 0, size);
+
+    mkfifo(FIFO, 0777);
+retry:
+    fd = open(FIFO, O_RDONLY);
+    retbyte = read(fd, out, size);
+    if(retbyte == 0)
+    {
+        LOG(DEBUG_LOG, "Received fifo closed response, retry read");
+        close(fd);
+        goto retry;
+    }
+    ((char*)out)[retbyte] = '\0';
+    LOG(DEBUG_LOG, "Read successful");
+    close(fd);
+    *buff = out;
+}
+
+void send_ack()
+{
+    LOG(DEBUG_LOG, "Sending ACK");
+    int ack = 1;
+    msg_snd(&ack, sizeof(int));
+    LOG(DEBUG_LOG, "Send ACK successful");
+}
+
+void recv_ack()
+{
+    LOG(DEBUG_LOG, "Waiting ACK");
+    int *ack = NULL;
+    msg_rcv((void**)&ack, sizeof(int));
+    LOG(DEBUG_LOG, "Receive ACK successful");
+}
+
+void mplane_send_buffer(void *input_buff)
+{
+    LOG(DEBUG_LOG, "Sending message length: %ld", ((msg_t*)input_buff)->size);
+    msg_snd(&((msg_t*)input_buff)->size, sizeof(size_t));
+    LOG(DEBUG_LOG, "Sent successful");
+    recv_ack();
+    LOG(DEBUG_LOG, "Sending message content");
+    msg_snd(input_buff, ((msg_t*)input_buff)->size);
+    LOG(DEBUG_LOG, "Sent successful");
+    recv_ack();
+}
+
+void mplane_recv_buffer(void **output_buff)
+{
+    size_t *size = NULL;
+    LOG(DEBUG_LOG, "Reading message length");
+    msg_rcv((void**)&size, sizeof(size_t));
+    LOG(DEBUG_LOG, "Read successful, length: %ld", *size);
+    send_ack();
+    LOG(DEBUG_LOG, "Reading message content");
+    msg_rcv(output_buff, *size);
+    LOG(DEBUG_LOG, "Read successful");
+    send_ack();
+}
+
+void mplane_snd_rcv(input_t *input_buff ,output_t **output_buff, snd_rcv_t snd_rcv)
+{
+    switch(snd_rcv)
+    {
+        case SND:
+        mplane_send_buffer((void*)input_buff);
+        break;
+        case RCV:
+        mplane_recv_buffer((void**)output_buff);
+        break;
+    }
+}
+
+void release_in_out_buff(void *in_buff, void *out_buff)
+{
+    if(in_buff)
+        free(in_buff);
+    if(out_buff)
+        free(out_buff);
+}
+
+int
+mplane_rpc_start_mpra_cb(sr_session_ctx_t *session, const char *path, const sr_val_t *input, const size_t input_cnt,
+        sr_event_t event, uint32_t request_id, sr_val_t **output, size_t *output_cnt, void *private_data)
+{
+    pid_t pid = 0;
+    char cmd[MAX_INPUT_SIZE]={0};
+    strcpy(cmd, "mpra");
+
+    LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
+
+    pid = fork();
+    if (pid == 0) {
+        LOG(DEBUG_LOG, "I am the child, I will invoke the MPRA");
+        LOG(DEBUG_LOG, "Invoking MPRA");
+	execlp(cmd, cmd, NULL);
+    }
+    else if (pid < 0) {
+        LOG(CRIT_LOG, "fork() failed");
+        return SR_ERR_CALLBACK_FAILED;
+    }
+    else {
+        signal(SIGCHLD,SIG_IGN);
+        LOG(DEBUG_LOG, "I am the parent, the child pid: %d", pid);
+        LOG(DEBUG_LOG, "Exiting parent");
+        return SR_ERR_OK;
+    }
+    LOG(INFO_LOG, "=============== FINISHED PROCESSING RPC ===============");
+    return SR_ERR_OK;
+}
+
+int
+mplane_rpc_stop_mpra_cb(sr_session_ctx_t *session, const char *path, const sr_val_t *input, const size_t input_cnt,
+        sr_event_t event, uint32_t request_id, sr_val_t **output, size_t *output_cnt, void *private_data)
+{
+    (void)session;
+    (void)event;
+    (void)request_id;
+    (void)private_data;
+    input_t *mpra_input;
+    output_t *mpra_output = NULL;
+    char *cmd = "request STOP";
+    int cmd_len = strlen(cmd);
+    int retcode = 0;
+
+    LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
+
+    LOG(INFO_LOG, "Processing rpc input");
+    mpra_input = mplane_parse_rpc_input(input, input_cnt);
+
+    LOG(INFO_LOG, "Adding stop command");
+    mpra_input = (input_t *) realloc(mpra_input, mpra_input->size + cmd_len);
+    if(!mpra_input)
+    {
+        LOG(CRIT_LOG, "malloc() failed");
+        return SR_ERR_INTERNAL;
+    }
+    strcat(mpra_input->buff, cmd);
+    mpra_input->size += cmd_len;
+    LOG(INFO_LOG, "Rrepared cmd buff from rpc input: %s", mpra_input->buff);
+
+    LOG(INFO_LOG, "Sending cmd buff to MPRA");
+    mplane_snd_rcv(mpra_input, NULL, SND);
+    LOG(INFO_LOG, "Sent cmd buff to MPRA");
+
+    LOG(INFO_LOG, "Waiting for cmd response from MPRA");
+    mplane_snd_rcv(NULL, &mpra_output, RCV);
+    LOG(INFO_LOG, "Received response from MPRA");
+    LOG(INFO_LOG, "Received content: %s", mpra_output->buff);
+    LOG(INFO_LOG, "=============== FINISHED PROCESSING RPC ===============");
+
+    retcode = mpra_output->retcode;
+    release_in_out_buff(mpra_input, mpra_output);
+    return retcode;
+}
+
+int
+mplane_rpc_set_temperature_cb(sr_session_ctx_t *session, const char *path, const sr_val_t *input, const size_t input_cnt,
+        sr_event_t event, uint32_t request_id, sr_val_t **output, size_t *output_cnt, void *private_data)
+{
+    (void)session;
+    (void)event;
+    (void)request_id;
+    (void)private_data;
+    int retcode = 0;
+    input_t *mpra_input;
+    output_t *mpra_output = NULL;
+    LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
+
+    LOG(INFO_LOG, "Processing rpc input");
+    mpra_input = mplane_parse_rpc_input(input, input_cnt);
+    LOG(INFO_LOG, "Rrepared cmd buff from rpc input: %s", mpra_input->buff);
+
+    LOG(INFO_LOG, "Sending cmd buff to MPRA");
+    mplane_snd_rcv(mpra_input, NULL, SND);
+    LOG(INFO_LOG, "Sent cmd buff to MPRA");
+
+    LOG(INFO_LOG, "Waiting for cmd response from MPRA");
+    mplane_snd_rcv(NULL, &mpra_output, RCV);
+    LOG(INFO_LOG, "Received response from MPRA");
+    LOG(INFO_LOG, "Received content: %s", mpra_output->buff);
+    LOG(INFO_LOG, "=============== FINISHED PROCESSING RPC ===============");
+
+    retcode = mpra_output->retcode;
+    release_in_out_buff(mpra_input, mpra_output);
+    return retcode;
+}
+
+int
+mplane_rpc_get_antenna_cb(sr_session_ctx_t *session, const char *path, const sr_val_t *input, const size_t input_cnt,
+        sr_event_t event, uint32_t request_id, sr_val_t **output, size_t *output_cnt, void *private_data)
+{
+    (void)session;
+    (void)event;
+    (void)request_id;
+    (void)private_data;
+    int retcode = 0;
+    input_t *mpra_input;
+    output_t *mpra_output = NULL;
+    LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
+    mpra_input = mplane_parse_rpc_input(input, input_cnt);
+    LOG(INFO_LOG, "Rrepared cmd buff from rpc input: %s", mpra_input->buff);
+
+    LOG(INFO_LOG, "Sending cmd buff to MPRA");
+    mplane_snd_rcv(mpra_input, NULL, SND);
+    LOG(INFO_LOG, "Sent cmd buff to MPRA");
+
+    LOG(INFO_LOG, "Waiting for cmd response from MPRA");
+    mplane_snd_rcv(NULL, &mpra_output, RCV);
+    LOG(INFO_LOG, "Received response from MPRA");
+    LOG(INFO_LOG, "Received content: %s", mpra_output->buff);
+
+    /* generate some output */
+    if(mpra_output->retcode != SR_ERR_OK)
+        goto cleanup;
+    *output = malloc((sizeof **output)*2);
+    *output_cnt = 2;
+
+    (*output)[0].xpath = strdup("/mplane-rpcs:get-antenna-cfg/msg");
+    (*output)[0].type = SR_STRING_T;
+    (*output)[0].dflt = 0;
+    (*output)[0].data.string_val = strdup("Returned temperature");
+
+    (*output)[1].xpath = strdup("/mplane-rpcs:get-antenna-cfg/ret");
+    (*output)[1].type = SR_STRING_T;
+    (*output)[1].dflt = 0;
+    (*output)[1].data.string_val = strdup(mpra_output->buff);
+
+    LOG(INFO_LOG, "=============== FINISHED PROCESSING RPC ===============");
+
+cleanup:
+    retcode = mpra_output->retcode;
+    release_in_out_buff(mpra_input, mpra_output);
+    return retcode;
+}
+
+int
+mplane_rpc_edit_antenna_cb(sr_session_ctx_t *session, const char *path, const sr_val_t *input, const size_t input_cnt,
+        sr_event_t event, uint32_t request_id, sr_val_t **output, size_t *output_cnt, void *private_data)
+{
+    (void)session;
+    (void)event;
+    (void)request_id;
+    (void)private_data;
+    int retcode = 0;
+    input_t *mpra_input;
+    output_t *mpra_output = NULL;
+    LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
+
+    LOG(INFO_LOG, "Processing rpc input");
+    mpra_input = mplane_parse_rpc_input(input, input_cnt);
+    LOG(INFO_LOG, "Rrepared cmd buff from rpc input: %s", mpra_input->buff);
+
+    LOG(INFO_LOG, "Sending cmd buff to MPRA");
+    mplane_snd_rcv(mpra_input, NULL, SND);
+    LOG(INFO_LOG, "Sent cmd buff to MPRA");
+
+    LOG(INFO_LOG, "Waiting for cmd response from MPRA");
+    mplane_snd_rcv(NULL, &mpra_output, RCV);
+    LOG(INFO_LOG, "Received response from MPRA");
+    LOG(INFO_LOG, "Received content: %s", mpra_output->buff);
+    LOG(INFO_LOG, "=============== FINISHED PROCESSING RPC ===============");
+
+    retcode = mpra_output->retcode;
+    release_in_out_buff(mpra_input, mpra_output);
+    return retcode;
+}
+
+int
+mplane_rpc_show_temperature_cb(sr_session_ctx_t *session, const char *path, const sr_val_t *input, const size_t input_cnt,
+        sr_event_t event, uint32_t request_id, sr_val_t **output, size_t *output_cnt, void *private_data)
+{
+    (void)session;
+    (void)event;
+    (void)request_id;
+    (void)private_data;
+    int retcode = 0;
+    input_t *mpra_input;
+    output_t *mpra_output = NULL;
+    LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
+    mpra_input = mplane_parse_rpc_input(input, input_cnt);
+    LOG(INFO_LOG, "Rrepared cmd buff from rpc input: %s", mpra_input->buff);
+
+    LOG(INFO_LOG, "Sending cmd buff to MPRA");
+    mplane_snd_rcv(mpra_input, NULL, SND);
+    LOG(INFO_LOG, "Sent cmd buff to MPRA");
+
+    LOG(INFO_LOG, "Waiting for cmd response from MPRA");
+    mplane_snd_rcv(NULL, &mpra_output, RCV);
+    LOG(INFO_LOG, "Received response from MPRA");
+    LOG(INFO_LOG, "Received content: %s", mpra_output->buff);
+
+    /* generate some output */
+    if(mpra_output->retcode != SR_ERR_OK)
+        goto cleanup;
+    *output = malloc((sizeof **output)*2);
+    *output_cnt = 2;
+
+    (*output)[0].xpath = strdup("/mplane-rpcs:show-temperature/msg");
+    (*output)[0].type = SR_STRING_T;
+    (*output)[0].dflt = 0;
+    (*output)[0].data.string_val = strdup("Returned temperature");
+
+    (*output)[1].xpath = strdup("/mplane-rpcs:show-temperature/ret");
+    (*output)[1].type = SR_STRING_T;
+    (*output)[1].dflt = 0;
+    (*output)[1].data.string_val = strdup(mpra_output->buff);
+
+    LOG(INFO_LOG, "=============== FINISHED PROCESSING RPC ===============");
+
+cleanup:
+    retcode = mpra_output->retcode;
+    release_in_out_buff(mpra_input, mpra_output);
+    return retcode;
 }
 
 int

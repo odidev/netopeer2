@@ -124,9 +124,32 @@ ly_print_clb(LY_LOG_LEVEL level, const char *msg, const char *path)
     }
 }
 
+#define RUN_AS_LOCAL_APP 1
 int
 main(void)
 {
+    #if RUN_AS_LOCAL_APP
+      #define CMD_COUNTS 15
+      char user_commands[CMD_COUNTS][60]={
+                              //"connect --login root",
+                              "connect --host 192.168.2.152 --port 830 --login root",
+                              "user-rpc --content /tmp/start-mpra-rpc.xml",
+                              "user-rpc --content /tmp/get-user-rpc.xml",
+                              "user-rpc --content /tmp/set-user-26-rpc.xml",
+                              "user-rpc --content /tmp/get-user-rpc.xml",
+                              "user-rpc --content /tmp/set-user-27-rpc.xml",
+                              "user-rpc --content /tmp/get-user-rpc.xml",
+                              "user-rpc --content /tmp/get-user-bool-rpc.xml",
+                              "user-rpc --content /tmp/set-user-bool-true-rpc.xml",
+                              "user-rpc --content /tmp/get-user-bool-rpc.xml",
+                              "user-rpc --content /tmp/set-user-bool-false-rpc.xml",
+                              "user-rpc --content /tmp/get-user-bool-rpc.xml",
+                              "user-rpc --content /tmp/stop-mpra-rpc.xml",
+                              "disconnect",
+                              "quit",
+                            };
+      int i_cmd=0;
+    #endif
     char *cmd, *cmdline, *cmdstart, *tmp_config_file = NULL;
     int i, j;
     struct sigaction action;
@@ -156,6 +179,14 @@ main(void)
     }
 
     while (!done) {
+        #if RUN_AS_LOCAL_APP
+        if(i_cmd<CMD_COUNTS)
+        {
+            printf("\n\n Command sequence: [S.No:%d], CMD: \"%s\"\n", i_cmd, user_commands[i_cmd]);
+            cmdline = user_commands[i_cmd];
+        }
+        else
+        #endif
         /* get the command from user */
         cmdline = linenoise(PROMPT);
 
@@ -165,6 +196,13 @@ main(void)
             cmdline = strdup("quit");
         }
 
+        #if RUN_AS_LOCAL_APP
+        if(i_cmd<CMD_COUNTS)
+        {
+            //write code here if need to check anything in provided command
+        }
+        else
+        #endif
         /* empty line -> wait for another command */
         if (*cmdline == '\0') {
             free(cmdline);
@@ -210,6 +248,18 @@ main(void)
 
         tmp_config_file = NULL;
         free(cmd);
+        #if RUN_AS_LOCAL_APP
+        if(i_cmd<CMD_COUNTS)
+        {
+            printf("\n Done with processing command sequence: [S.No:%d] CMD: \"%s\"\n\n", i_cmd, user_commands[i_cmd]);
+            printf((i_cmd == CMD_COUNTS - 1)?"\nEntering in interactive command input console now...\n":"\nGoing to trigger next command from provided command sequence...\n");
+            sleep(2);
+            i_cmd++;
+            //In this change we are providing series-of-commands statically from code
+            //On reading the same from any file, we may need to use free for cmdline
+        }
+        else
+        #endif
         free(cmdline);
     }
 

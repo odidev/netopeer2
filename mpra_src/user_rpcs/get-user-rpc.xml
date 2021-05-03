@@ -1,0 +1,5 @@
+<show-temperature xmlns="urn:m-plane:rpcs:1.0">
+    <request>GET</request>
+    <datastore>running</datastore>
+    <xpath>/aircond:aircond-state/temperature</xpath>
+</show-temperature>
