@@ -129,21 +129,21 @@ int
 main(void)
 {
     #if RUN_AS_LOCAL_APP
-      #define CMD_COUNTS 15
+      #define CMD_COUNTS 5
       char user_commands[CMD_COUNTS][60]={
                               //"connect --login root",
                               "connect --host 192.168.2.152 --port 830 --login root",
                               "user-rpc --content /tmp/start-mpra-rpc.xml",
-                              "user-rpc --content /tmp/get-user-rpc.xml",
-                              "user-rpc --content /tmp/set-user-26-rpc.xml",
-                              "user-rpc --content /tmp/get-user-rpc.xml",
-                              "user-rpc --content /tmp/set-user-27-rpc.xml",
-                              "user-rpc --content /tmp/get-user-rpc.xml",
-                              "user-rpc --content /tmp/get-user-bool-rpc.xml",
-                              "user-rpc --content /tmp/set-user-bool-true-rpc.xml",
-                              "user-rpc --content /tmp/get-user-bool-rpc.xml",
-                              "user-rpc --content /tmp/set-user-bool-false-rpc.xml",
-                              "user-rpc --content /tmp/get-user-bool-rpc.xml",
+                              //"user-rpc --content /tmp/get-user-rpc.xml",
+                              //"user-rpc --content /tmp/set-user-26-rpc.xml",
+                              //"user-rpc --content /tmp/get-user-rpc.xml",
+                              //"user-rpc --content /tmp/set-user-27-rpc.xml",
+                              //"user-rpc --content /tmp/get-user-rpc.xml",
+                              //"user-rpc --content /tmp/get-user-bool-rpc.xml",
+                              //"user-rpc --content /tmp/set-user-bool-true-rpc.xml",
+                              //"user-rpc --content /tmp/get-user-bool-rpc.xml",
+                              //"user-rpc --content /tmp/set-user-bool-false-rpc.xml",
+                              //"user-rpc --content /tmp/get-user-bool-rpc.xml",
                               "user-rpc --content /tmp/stop-mpra-rpc.xml",
                               "disconnect",
                               "quit",

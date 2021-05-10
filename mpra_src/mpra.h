@@ -7,7 +7,7 @@ typedef enum
 
 typedef enum
 {
-    SET_CMD,
+    SET_CMD=1,
     GET_CMD,
     STOP_CMD,
     INVALID_CMD

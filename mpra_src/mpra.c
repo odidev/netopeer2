@@ -594,6 +594,13 @@ main(int argc, char **argv)
     #define MPLANE_SND_RCV(arg1, arg2, arg3) mplane_snd_rcv(arg1, arg2, arg3)
 #endif
 
+    int i = 0;
+    printf("ARCG: %d\n", argc);
+    for (i = 0; i < argc; i++)
+    {
+        printf("arg(%d): %s\n", i, argv[i]);
+    }
+
     do
     {
         LOG(INFO_LOG, "Waiting request from Netopeer2");

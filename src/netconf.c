@@ -38,7 +38,7 @@
 #include <signal.h>
 
 #define PRINT_LOG 1
-int CURR_LOG_LEVEL = INFO_LOG;
+int CURR_LOG_LEVEL = DEBUG_LOG;
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define LOG(LEVEL, fmt, ...)                                               \
@@ -430,8 +430,12 @@ mplane_rpc_start_mpra_cb(sr_session_ctx_t *session, const char *path, const sr_v
         sr_event_t event, uint32_t request_id, sr_val_t **output, size_t *output_cnt, void *private_data)
 {
     pid_t pid = 0;
-    char cmd[MAX_INPUT_SIZE]={0};
-    strcpy(cmd, "mpra");
+    char *argv[] = {"/root/kd/T3.3/new_app/sample-app",
+                   "-c",
+                   "/root/kd/T3.3/new_app/usecase/mu1_100mhz/config_file_o_ru_xran.dat",
+                   "-p",
+                   "2",
+                   "dpni.2"};
 
     LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
 
@@ -439,7 +443,7 @@ mplane_rpc_start_mpra_cb(sr_session_ctx_t *session, const char *path, const sr_v
     if (pid == 0) {
         LOG(DEBUG_LOG, "I am the child, I will invoke the MPRA");
         LOG(DEBUG_LOG, "Invoking MPRA");
-	execlp(cmd, cmd, NULL);
+	execlp(argv[0], argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], NULL);
     }
     else if (pid < 0) {
         LOG(CRIT_LOG, "fork() failed");
