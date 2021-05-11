@@ -145,8 +145,8 @@ main(void)
                               //"user-rpc --content /tmp/set-user-bool-false-rpc.xml",
                               //"user-rpc --content /tmp/get-user-bool-rpc.xml",
                               "user-rpc --content /tmp/stop-mpra-rpc.xml",
-                              "disconnect",
-                              "quit",
+                              //"disconnect",
+                              //"quit",
                             };
       int i_cmd=0;
     #endif
@@ -248,12 +248,17 @@ main(void)
 
         tmp_config_file = NULL;
         free(cmd);
+        static int x = 0;
+        x = x + 1;
         #if RUN_AS_LOCAL_APP
         if(i_cmd<CMD_COUNTS)
         {
             printf("\n Done with processing command sequence: [S.No:%d] CMD: \"%s\"\n\n", i_cmd, user_commands[i_cmd]);
             printf((i_cmd == CMD_COUNTS - 1)?"\nEntering in interactive command input console now...\n":"\nGoing to trigger next command from provided command sequence...\n");
-            sleep(2);
+            if (x == 2)
+                sleep(20);
+            else
+               sleep(2);
             i_cmd++;
             //In this change we are providing series-of-commands statically from code
             //On reading the same from any file, we may need to use free for cmdline

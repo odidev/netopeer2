@@ -337,6 +337,7 @@ void msg_snd(void *buff, size_t size)
     write(fd, buff, size);
     LOG(DEBUG_LOG, "Write successful");
     close(fd);
+    usleep(1);
 }
 void msg_rcv(void **buff, size_t size)
 {
@@ -357,6 +358,14 @@ retry:
         close(fd);
         goto retry;
     }
+    if(retbyte == -1)
+    {
+        LOG(DEBUG_LOG, "read() failed");
+        close(fd);
+        *buff = NULL;
+        return;
+    }
+
     ((char*)out)[retbyte] = '\0';
     LOG(DEBUG_LOG, "Read successful");
     close(fd);
@@ -376,19 +385,28 @@ void recv_ack()
     LOG(DEBUG_LOG, "Waiting ACK");
     int *ack = NULL;
     msg_rcv((void**)&ack, sizeof(int));
-    LOG(DEBUG_LOG, "Receive ACK successful");
+    LOG(DEBUG_LOG, "Receive ACK successful: %d", *ack);
 }
 
 void mplane_send_buffer(void *input_buff)
 {
+    size_t i = 0;
+    size_t size = ((msg_t*)input_buff)->size;
+    printf("Netopeer Send Buffer \n");
+    for(i = 0; i < size; i++)
+    {
+        printf("'%c' ", ((char*)input_buff)[i]);
+    }
+    printf("\n"); fflush(stdout);
+
     LOG(DEBUG_LOG, "Sending message length: %ld", ((msg_t*)input_buff)->size);
     msg_snd(&((msg_t*)input_buff)->size, sizeof(size_t));
     LOG(DEBUG_LOG, "Sent successful");
-    recv_ack();
+    //recv_ack();
     LOG(DEBUG_LOG, "Sending message content");
     msg_snd(input_buff, ((msg_t*)input_buff)->size);
     LOG(DEBUG_LOG, "Sent successful");
-    recv_ack();
+    //recv_ack();
 }
 
 void mplane_recv_buffer(void **output_buff)
@@ -397,11 +415,18 @@ void mplane_recv_buffer(void **output_buff)
     LOG(DEBUG_LOG, "Reading message length");
     msg_rcv((void**)&size, sizeof(size_t));
     LOG(DEBUG_LOG, "Read successful, length: %ld", *size);
-    send_ack();
+    //send_ack();
     LOG(DEBUG_LOG, "Reading message content");
     msg_rcv(output_buff, *size);
     LOG(DEBUG_LOG, "Read successful");
-    send_ack();
+    //send_ack();
+    size_t i = 0;
+    printf("Netopeer Recv Buffer \n");
+    for(i = 0; i < *size; i++)
+    {
+        printf("'%c' ", ((char*)output_buff)[i]);
+    }
+    printf("\n"); fflush(stdout);
 }
 
 void mplane_snd_rcv(input_t *input_buff ,output_t **output_buff, snd_rcv_t snd_rcv)
@@ -435,7 +460,8 @@ mplane_rpc_start_mpra_cb(sr_session_ctx_t *session, const char *path, const sr_v
                    "/root/kd/T3.3/new_app/usecase/mu1_100mhz/config_file_o_ru_xran.dat",
                    "-p",
                    "2",
-                   "dpni.2"};
+                   "dpni.2",
+                   "dpni.3"};
 
     LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
 
@@ -443,7 +469,11 @@ mplane_rpc_start_mpra_cb(sr_session_ctx_t *session, const char *path, const sr_v
     if (pid == 0) {
         LOG(DEBUG_LOG, "I am the child, I will invoke the MPRA");
         LOG(DEBUG_LOG, "Invoking MPRA");
-	execlp(argv[0], argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], NULL);
+        //system("echo 7 > /proc/sys/kernel/printk");
+        //system("echo 1 > /sys/bus/pci/rescan");
+        //system("insmod /lib/modules/4.19.90-rt35/extra/yami.ko scratch_buf_size=0x20000000 scratch_buf_phys_addr=0x2360000000");
+        //system("source /usr/local/dpdk/dpaa2/dynamic_dpl.sh dpmac.5 dpmac.3");
+	execlp(argv[0], argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], NULL);
     }
     else if (pid < 0) {
         LOG(CRIT_LOG, "fork() failed");
