@@ -454,39 +454,46 @@ int
 mplane_rpc_start_mpra_cb(sr_session_ctx_t *session, const char *path, const sr_val_t *input, const size_t input_cnt,
         sr_event_t event, uint32_t request_id, sr_val_t **output, size_t *output_cnt, void *private_data)
 {
-    pid_t pid = 0;
-    char *argv[] = {"/root/kd/T3.3/new_app/sample-app",
-                   "-c",
-                   "/root/kd/T3.3/new_app/usecase/mu1_100mhz/config_file_o_ru_xran.dat",
-                   "-p",
-                   "2",
-                   "dpni.2",
-                   "dpni.3"};
+    (void)session;
+    (void)event;
+    (void)request_id;
+    (void)private_data;
+    input_t *mpra_input;
+    output_t *mpra_output = NULL;
+    char *cmd = "request START";
+    int cmd_len = strlen(cmd);
+    int retcode = 0;
 
     LOG(INFO_LOG, "=============== RPC \"%s\" RECEIVED: ===============", path);
 
-    pid = fork();
-    if (pid == 0) {
-        LOG(DEBUG_LOG, "I am the child, I will invoke the MPRA");
-        LOG(DEBUG_LOG, "Invoking MPRA");
-        //system("echo 7 > /proc/sys/kernel/printk");
-        //system("echo 1 > /sys/bus/pci/rescan");
-        //system("insmod /lib/modules/4.19.90-rt35/extra/yami.ko scratch_buf_size=0x20000000 scratch_buf_phys_addr=0x2360000000");
-        //system("source /usr/local/dpdk/dpaa2/dynamic_dpl.sh dpmac.5 dpmac.3");
-	execlp(argv[0], argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], NULL);
+    LOG(INFO_LOG, "Processing rpc input");
+    mpra_input = mplane_parse_rpc_input(input, input_cnt);
+
+    LOG(INFO_LOG, "Adding start command");
+    mpra_input = (input_t *) realloc(mpra_input, mpra_input->size + cmd_len);
+    if(!mpra_input)
+    {
+        LOG(CRIT_LOG, "malloc() failed");
+        return SR_ERR_INTERNAL;
     }
-    else if (pid < 0) {
-        LOG(CRIT_LOG, "fork() failed");
-        return SR_ERR_CALLBACK_FAILED;
-    }
-    else {
-        signal(SIGCHLD,SIG_IGN);
-        LOG(DEBUG_LOG, "I am the parent, the child pid: %d", pid);
-        LOG(DEBUG_LOG, "Exiting parent");
-        return SR_ERR_OK;
-    }
+    strcat(mpra_input->buff, cmd);
+    mpra_input->size += cmd_len;
+    LOG(INFO_LOG, "Rrepared cmd buff from rpc input: %s", mpra_input->buff);
+
+    LOG(INFO_LOG, "Sending cmd buff to MPRA");
+    mplane_snd_rcv(mpra_input, NULL, SND);
+    LOG(INFO_LOG, "Sent cmd buff to MPRA");
+
+    LOG(INFO_LOG, "Waiting for cmd response from MPRA");
+    mplane_snd_rcv(NULL, &mpra_output, RCV);
+    LOG(INFO_LOG, "Received response from MPRA");
+    LOG(INFO_LOG, "Received content: %s", mpra_output->buff);
     LOG(INFO_LOG, "=============== FINISHED PROCESSING RPC ===============");
-    return SR_ERR_OK;
+
+    retcode = mpra_output->retcode;
+    release_in_out_buff(mpra_input, mpra_output);
+    return retcode;
+
 }
 
 int

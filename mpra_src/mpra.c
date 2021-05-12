@@ -171,15 +171,21 @@ mpra_parse_commad_buffer(char *cmd_buff)
 
     if (value)
     {
-        if (strcmp(value, "SET") == 0){
+        if (strcmp(value, "START") == 0){
+            cmd->operation = START_CMD;
+        }
+	else if (strcmp(value, "STOP") == 0){
+            cmd->operation = STOP_CMD;
+        }
+	else if (strcmp(value, "SET") == 0){
             cmd->operation = SET_CMD;
         }
         else if (strcmp(value, "GET") == 0){
             cmd->operation = GET_CMD;
         }
-        else if (strcmp(value, "STOP") == 0){
-            cmd->operation = STOP_CMD;
-        }
+	else{
+	    cmd->operation = INVALID_CMD;
+	}
     }
     else
     {
@@ -284,8 +290,20 @@ mpra_process_invalid_cmd()
 }
 
 output_t*
+mpra_process_start_cmd()
+{
+    LOG(DEBUG_LOG, "Need to call START API here");
+    output_t *output = NULL;
+    output = (output_t*) malloc(sizeof(output_t));
+    output->size = sizeof(output_t);
+    output->retcode = SR_ERR_OK;
+    return output;
+}
+
+output_t*
 mpra_process_stop_cmd()
 {
+    LOG(DEBUG_LOG, "Need to call STOP API here");
     output_t *output = NULL;
     output = (output_t*) malloc(sizeof(output_t));
     output->size = sizeof(output_t);
@@ -370,14 +388,17 @@ mpra_process_received_cmd(cmd_t *cmd)
     output_t *output = NULL;
     switch(cmd->operation)
     {
-        case GET_CMD:
-            output = mpra_process_get_cmd(cmd);
+        case START_CMD:
+            output = mpra_process_start_cmd();
+            break;
+        case STOP_CMD:
+            output = mpra_process_stop_cmd();
             break;
         case SET_CMD:
             output = mpra_process_set_cmd(cmd);
             break;
-        case STOP_CMD:
-            output = mpra_process_stop_cmd();
+        case GET_CMD:
+            output = mpra_process_get_cmd(cmd);
             break;
 	case INVALID_CMD:
         default:
@@ -619,11 +640,6 @@ main(int argc, char **argv)
         MPLANE_SND_RCV(mpra_output, NULL, SND);
         LOG(INFO_LOG, "Send successful");
 
-        if(cmd->operation == STOP_CMD)
-        {
-            LOG(INFO_LOG, "Stopping MPRA");
-            loop = 0;
-        }
         release_buffs(mpra_input, mpra_output, cmd);
     } while(loop);
     LOG(INFO_LOG, "Stopped MPRA");
