@@ -126,11 +126,32 @@ ly_print_clb(LY_LOG_LEVEL level, const char *msg, const char *path)
 
 #define RUN_AS_LOCAL_APP 1
 int
-main(void)
+main(int argc, char *argv[])
 {
     #if RUN_AS_LOCAL_APP
+    #define BUFF_SIZE 80
+    char connet_str[BUFF_SIZE] = {0};
+    char ip[BUFF_SIZE] = {0};
+    char user[BUFF_SIZE] = {0};
+    if(argc > 1)
+    {
+        strcpy(ip, argv[1]);
+        strcpy(user, argv[2]);
+    }
+    else
+    {
+        printf("Please enter IP of RU: ");
+        scanf("%s", ip);
+        printf("Please enter USER of RU: ");
+        scanf("%s", user);
+    }
+    sprintf(connet_str,"connect --host %s --port 830 --login %s", ip, user);
+    printf("Connecting with...\n");
+    printf("IP: %s\n", ip);
+    printf("PORT(STD): 830\n");
+    printf("USER: %s\n", user);
       #define CMD_COUNTS 5
-      char user_commands[CMD_COUNTS][60]={
+      char user_commands[CMD_COUNTS][80]={
                               //"connect --login root",
                               "connect --host 192.168.2.152 --port 830 --login root",
                               "user-rpc --content /tmp/start-mpra-rpc.xml",
@@ -148,6 +169,11 @@ main(void)
                               //"disconnect",
                               //"quit",
                             };
+      if(strlen(ip) >= 7)
+      {
+          strcpy(user_commands[0], connet_str);
+          user_commands[0][strlen(connet_str)] = '\0';
+      }
       int i_cmd=0;
     #endif
     char *cmd, *cmdline, *cmdstart, *tmp_config_file = NULL;
