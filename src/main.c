@@ -1116,6 +1116,13 @@ main(int argc, char *argv[])
     struct sigaction action;
     sigset_t block_mask;
 
+    /*pthread_t  thread;
+    cpu_set_t cpuset;
+    thread = pthread_self();
+    CPU_ZERO(&cpuset);
+    CPU_SET(7,&cpuset);
+    pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);*/
+
     /* until daemonized, write messages to both syslog and stderr */
     openlog("netopeer2-server", LOG_PID, LOG_DAEMON);
     np2_stderr_log = 1;

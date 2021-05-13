@@ -150,11 +150,14 @@ main(int argc, char *argv[])
     printf("IP: %s\n", ip);
     printf("PORT(STD): 830\n");
     printf("USER: %s\n", user);
-      #define CMD_COUNTS 5
+
+/*    printf("\n Start command: user-rpc --content /tmp/start-mpra-rpc.xml\n");
+    printf("Stop command:  user-rpc --content /tmp/stop-mpra-rpc.xml\n");*/
+      #define CMD_COUNTS 1
       char user_commands[CMD_COUNTS][80]={
                               //"connect --login root",
                               "connect --host 192.168.2.152 --port 830 --login root",
-                              "user-rpc --content /tmp/start-mpra-rpc.xml",
+                              //"user-rpc --content /tmp/start-mpra-rpc.xml",
                               //"user-rpc --content /tmp/get-user-rpc.xml",
                               //"user-rpc --content /tmp/set-user-26-rpc.xml",
                               //"user-rpc --content /tmp/get-user-rpc.xml",
@@ -165,7 +168,7 @@ main(int argc, char *argv[])
                               //"user-rpc --content /tmp/get-user-bool-rpc.xml",
                               //"user-rpc --content /tmp/set-user-bool-false-rpc.xml",
                               //"user-rpc --content /tmp/get-user-bool-rpc.xml",
-                              "user-rpc --content /tmp/stop-mpra-rpc.xml",
+                              //"user-rpc --content /tmp/stop-mpra-rpc.xml",
                               //"disconnect",
                               //"quit",
                             };
