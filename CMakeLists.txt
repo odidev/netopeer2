@@ -47,9 +47,6 @@ else()
     option(VALGRIND_TESTS "Build tests with valgrind" OFF)
 endif()
 option(BUILD_CLI "Build and install neotpeer2-cli" ON)
-if(DEFINED ENV{NTPR2_SERVER})
-    option(BUILD_MPRA "Build and install MPRA" ON)
-endif()
 option(ENABLE_URL "Enable URL capability" ON)
 set(THREAD_COUNT 5 CACHE STRING "Number of threads accepting new sessions and handling requests")
 set(NACM_RECOVERY_UID 0 CACHE STRING "NACM recovery session UID that has unrestricted access")
@@ -260,11 +257,6 @@ endif()
 # cli
 if(BUILD_CLI)
     add_subdirectory(cli)
-endif()
-
-# mpra
-if(BUILD_MPRA)
-	add_subdirectory(mpra_src)
 endif()
 
 # clean cmake cache

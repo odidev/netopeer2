@@ -151,33 +151,18 @@ main(int argc, char *argv[])
     printf("PORT(STD): 830\n");
     printf("USER: %s\n", user);
 
-/*    printf("\n Start command: user-rpc --content /tmp/start-mpra-rpc.xml\n");
-    printf("Stop command:  user-rpc --content /tmp/stop-mpra-rpc.xml\n");*/
-      #define CMD_COUNTS 1
-      char user_commands[CMD_COUNTS][80]={
+    #define CMD_COUNTS 1
+    char user_commands[CMD_COUNTS][80]={
                               //"connect --login root",
                               "connect --host 192.168.2.152 --port 830 --login root",
-                              //"user-rpc --content /tmp/start-mpra-rpc.xml",
-                              //"user-rpc --content /tmp/get-user-rpc.xml",
-                              //"user-rpc --content /tmp/set-user-26-rpc.xml",
-                              //"user-rpc --content /tmp/get-user-rpc.xml",
-                              //"user-rpc --content /tmp/set-user-27-rpc.xml",
-                              //"user-rpc --content /tmp/get-user-rpc.xml",
-                              //"user-rpc --content /tmp/get-user-bool-rpc.xml",
-                              //"user-rpc --content /tmp/set-user-bool-true-rpc.xml",
-                              //"user-rpc --content /tmp/get-user-bool-rpc.xml",
-                              //"user-rpc --content /tmp/set-user-bool-false-rpc.xml",
-                              //"user-rpc --content /tmp/get-user-bool-rpc.xml",
-                              //"user-rpc --content /tmp/stop-mpra-rpc.xml",
-                              //"disconnect",
-                              //"quit",
+                              //"user-rpc --content <xml file>",
                             };
-      if(strlen(ip) >= 7)
-      {
-          strcpy(user_commands[0], connet_str);
-          user_commands[0][strlen(connet_str)] = '\0';
-      }
-      int i_cmd=0;
+    if(strlen(ip) >= 7)
+    {
+        strcpy(user_commands[0], connet_str);
+        user_commands[0][strlen(connet_str)] = '\0';
+    }
+    int i_cmd=0;
     #endif
     char *cmd, *cmdline, *cmdstart, *tmp_config_file = NULL;
     int i, j;

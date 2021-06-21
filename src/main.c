@@ -743,32 +743,6 @@ error:
 }
 
 static int
-mplane_rpc_subscribe(void)
-{
-    int rc;
-
-#define MPLANE_RPC_SUBSCR(xpath, cb) \
-    rc = sr_rpc_subscribe(np2srv.sr_sess, xpath, cb, NULL, 0, SR_SUBSCR_CTX_REUSE, &np2srv.sr_rpc_sub); \
-    if (rc != SR_ERR_OK) { \
-        ERR("Subscribing for \"%s\" RPC failed (%s).", xpath, sr_strerror(rc)); \
-        goto error; \
-    }
-
-    MPLANE_RPC_SUBSCR("/mplane-rpcs:start-mpra", mplane_rpc_start_mpra_cb);
-    MPLANE_RPC_SUBSCR("/mplane-rpcs:stop-mpra", mplane_rpc_stop_mpra_cb);
-    MPLANE_RPC_SUBSCR("/mplane-rpcs:change-temperature", mplane_rpc_set_temperature_cb);
-    MPLANE_RPC_SUBSCR("/mplane-rpcs:show-temperature", mplane_rpc_show_temperature_cb);
-    MPLANE_RPC_SUBSCR("/mplane-rpcs:edit-antenna-cfg", mplane_rpc_edit_antenna_cb);
-    MPLANE_RPC_SUBSCR("/mplane-rpcs:get-antenna-cfg", mplane_rpc_get_antenna_cb);
-
-    return 0;
-
-error:
-    ERR("Server RPC subscribe failed.");
-    return -1;
-}
-
-static int
 server_rpc_subscribe(void)
 {
     int rc;
@@ -1344,11 +1318,6 @@ main(int argc, char *argv[])
 
     /* subscribe to sysrepo */
     if (server_rpc_subscribe()) {
-        ret = EXIT_FAILURE;
-        goto cleanup;
-    }
-    /* subscribe to mplane rpc */
-    if(mplane_rpc_subscribe()) {
         ret = EXIT_FAILURE;
         goto cleanup;
     }
