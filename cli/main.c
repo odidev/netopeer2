@@ -124,12 +124,18 @@ ly_print_clb(LY_LOG_LEVEL level, const char *msg, const char *path)
     }
 }
 
-#define RUN_AS_LOCAL_APP 1
 int
 main(int argc, char *argv[])
 {
-    #if RUN_AS_LOCAL_APP
-    #define BUFF_SIZE 80
+    char *cmd, *cmdline, *cmdstart, *tmp_config_file = NULL;
+    int i, j;
+    struct sigaction action;
+
+#define NMS 1
+
+#if NMS
+#define BUFF_SIZE 80
+#define CMD_COUNTS 1
     char connet_str[BUFF_SIZE] = {0};
     char ip[BUFF_SIZE] = {0};
     char user[BUFF_SIZE] = {0};
@@ -151,7 +157,6 @@ main(int argc, char *argv[])
     printf("PORT(STD): 830\n");
     printf("USER: %s\n", user);
 
-    #define CMD_COUNTS 1
     char user_commands[CMD_COUNTS][80]={
                               //"connect --login root",
                               "connect --host 192.168.2.152 --port 830 --login root",
@@ -163,10 +168,7 @@ main(int argc, char *argv[])
         user_commands[0][strlen(connet_str)] = '\0';
     }
     int i_cmd=0;
-    #endif
-    char *cmd, *cmdline, *cmdstart, *tmp_config_file = NULL;
-    int i, j;
-    struct sigaction action;
+#endif
 
     nc_client_init();
 
@@ -193,14 +195,14 @@ main(int argc, char *argv[])
     }
 
     while (!done) {
-        #if RUN_AS_LOCAL_APP
+#if NMS
         if(i_cmd<CMD_COUNTS)
         {
             printf("\n\n Command sequence: [S.No:%d], CMD: \"%s\"\n", i_cmd, user_commands[i_cmd]);
             cmdline = user_commands[i_cmd];
         }
         else
-        #endif
+#endif
         /* get the command from user */
         cmdline = linenoise(PROMPT);
 
@@ -210,13 +212,13 @@ main(int argc, char *argv[])
             cmdline = strdup("quit");
         }
 
-        #if RUN_AS_LOCAL_APP
+#if NMS
         if(i_cmd<CMD_COUNTS)
         {
             //write code here if need to check anything in provided command
         }
         else
-        #endif
+#endif
         /* empty line -> wait for another command */
         if (*cmdline == '\0') {
             free(cmdline);
@@ -262,23 +264,17 @@ main(int argc, char *argv[])
 
         tmp_config_file = NULL;
         free(cmd);
-        static int x = 0;
-        x = x + 1;
-        #if RUN_AS_LOCAL_APP
+#if NMS
         if(i_cmd<CMD_COUNTS)
         {
             printf("\n Done with processing command sequence: [S.No:%d] CMD: \"%s\"\n\n", i_cmd, user_commands[i_cmd]);
             printf((i_cmd == CMD_COUNTS - 1)?"\nEntering in interactive command input console now...\n":"\nGoing to trigger next command from provided command sequence...\n");
-            if (x == 2)
-                sleep(20);
-            else
-               sleep(2);
             i_cmd++;
             //In this change we are providing series-of-commands statically from code
             //On reading the same from any file, we may need to use free for cmdline
         }
         else
-        #endif
+#endif
         free(cmdline);
     }
 

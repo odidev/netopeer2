@@ -31,11 +31,6 @@
 #include "log.h"
 #include "netconf_acm.h"
 
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <signal.h>
-
 static int
 np2srv_get_first_ns(const char *expr, const char **start, int *len)
 {
