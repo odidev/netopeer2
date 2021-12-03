@@ -156,9 +156,17 @@ main(void)
     if (!config_editor) {
         config_editor = strdup("vi");
     }
-
+	
+	static int is_FirstTime=0;
     while (!done) {
         /* get the command from user */
+	if(is_FirstTime==0)
+	{
+	cmdline=strdup("listen");
+	is_FirstTime++;
+	
+	}
+	else
         cmdline = linenoise(PROMPT);
 
         /* EOF -> exit */
