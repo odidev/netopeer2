@@ -163,9 +163,46 @@ main(void)
 	if(is_FirstTime==0)
 	{
 	cmdline=strdup("listen");
-	is_FirstTime++;
-	
+	is_FirstTime++;	
 	}
+
+	else if(is_FirstTime==1)
+	{	
+	cmdline=strdup("subscribe");
+	is_FirstTime++;
+	}
+
+	else if(is_FirstTime==2)
+	{	
+	cmdline=strdup("get --filter-xpath /o-ran-delay-management:* ");
+	is_FirstTime++;
+	}
+	
+	else if(is_FirstTime==3)
+	{	
+	printf("saving the data to the file /opt/PureSoftware/MP_3.0/config_data_xml/del_mgmt.xml edit the file (remove 1st and last line-mandatory )\n");
+	cmdline=strdup("get --filter-xpath /o-ran-delay-management:* --out /opt/PureSoftware/MP_3.0/config_data_xml/del_mgmt.xml");
+
+	is_FirstTime++;
+	}
+	else if(is_FirstTime==4)
+	{
+		getchar();
+		
+		system("vi /opt/PureSoftware/MP_3.0/config_data_xml/del_mgmt.xml");		
+
+		cmdline=strdup("edit-config --target running --config=/opt/PureSoftware/MP_3.0/config_data_xml/del_mgmt.xml --defop replace");
+		is_FirstTime++;
+	}
+
+	else if(is_FirstTime==5)
+	{
+		printf("Updated Data after edit-config opeartion \n");
+		
+		cmdline=strdup("get --filter-xpath /o-ran-delay-management:* ");
+		is_FirstTime++;	
+	}
+
 	else
         cmdline = linenoise(PROMPT);
 
